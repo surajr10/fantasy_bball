@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Set, Dict
 from dataclasses import dataclass
 
 @dataclass
@@ -71,9 +71,48 @@ class Stats:
     s21: StatDict
     s21_proj: StatDict
 
+    @staticmethod
+    def parse_stats(stats):
+        def get_stat(stat_id):
+            stat_objs = [stat for stat in stats if stat['id'] == stat_id]
+            if not stat_objs:
+                return None
+            stat_obj = stat_objs[0]
+            return StatDict(
+                avg = Stat.parse_stat(stat_obj['averageStats']) if 'averageStats' in stat_obj else None, 
+                total= Stat.parse_stat(stat_obj['stats']))
+
+        return Stats(
+            last7 = get_stat('012021'),
+            last15 = get_stat('022021'),
+            last30 = get_stat('032021'),
+            s20 = get_stat('002020'),
+            s21 = get_stat('002021'),
+            s21_proj = get_stat('102021')
+        )
+
 @dataclass
 class Player:
     pid: int
     name: str
     status: str # FREEAGENT, WAIVERS, etc.
     stats: Stats
+    league_tid: int
+    nba_tid: int
+
+    games_remaining: Optional[int] = None
+
+@dataclass
+class Team:
+    league_tid: int
+    waiver_rank: int
+    location: str
+    nickname: str
+    abbr: str
+
+    roster: Optional[Dict[int, Player]] = None
+
+    @property
+    def name(self):
+        return self.location + " " + self.nickname
+
