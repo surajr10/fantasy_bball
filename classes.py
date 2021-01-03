@@ -19,7 +19,6 @@ class Stat:
     steals: float
     blocks: float
     fouls: float
-        
     @property
     def fg_pct(self) -> float:
         return self.fgm/self.fga
