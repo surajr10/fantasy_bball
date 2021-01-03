@@ -18,11 +18,15 @@ class Stat:
     assists: float
     steals: float
     blocks: float
+<<<<<<< HEAD
     # attempted_threes: float
     # off_rebounds: float
     # def_rebounds: float
     # fouls: float
 
+=======
+    fouls: float
+>>>>>>> 96de2f9... random ish
     @property
     def fg_pct(self) -> float:
         return self.fgm / self.fga
