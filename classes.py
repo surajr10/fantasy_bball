@@ -30,31 +30,27 @@ class Stat:
         return self.ftm / self.fta
 
     @staticmethod
-    def from_stat_basic(stat_obj: Dict[int, float]) -> Callable[[int], Optional[float]]:
+    def from_stat_basic(stat_obj: Dict[str, float]) -> Callable[[str], float]:
         # Player info returns a dict of pure stats
-        return lambda index: stat_obj[index] if index in stat_obj else None
+        return lambda index: stat_obj[index]
 
     @staticmethod
     def from_stat_matchup(
-        stat_obj: Dict[int, Dict[str, Any]]
-    ) -> Callable[[int], Optional[float]]:
+        stat_obj: Dict[str, Dict[str, Any]]
+    ) -> Callable[[str], float]:
         # Matchup info returns a dict where raw stat is listed under score
-        return (
-            lambda index: cast(float, stat_obj[index]["score"])
-            if index in stat_obj
-            else None
-        )
+        return lambda index: cast(float, stat_obj[index]["score"])
 
     @staticmethod
     def parse_stat(
-        stat_obj: Union[Dict[int, Dict[str, Any]], Dict[int, float]],
+        stat_obj: Union[Dict[str, Dict[str, Any]], Dict[str, float]],
         from_stat_type: str = "basic",
     ) -> "Stat":
         if from_stat_type == "basic":
-            from_stat = Stat.from_stat_basic(cast(Dict[int, float], stat_obj))
+            from_stat = Stat.from_stat_basic(cast(Dict[str, float], stat_obj))
         else:
             from_stat = Stat.from_stat_matchup(
-                cast(Dict[int, Dict[str, Any]], stat_obj)
+                cast(Dict[str, Dict[str, Any]], stat_obj)
             )
 
         return Stat(
@@ -85,7 +81,7 @@ class Stat:
 
 @dataclass
 class StatDict:
-    avg: Stat
+    avg: Optional[Stat]
     total: Stat
 
 
@@ -174,7 +170,9 @@ class Schedule:
     last_processed_period: int = 0
 
     @staticmethod
-    def get_stats_from_matchup(curr_matchup_side) -> Optional[Stat]:
+    def get_stats_from_matchup(
+        curr_matchup_side: Dict[str, Dict[str, Any]]
+    ) -> Optional[Stat]:
         if "cumulativeScore" in curr_matchup_side:
             return Stat.parse_stat(
                 curr_matchup_side["cumulativeScore"]["scoreByStat"], "matchup"
