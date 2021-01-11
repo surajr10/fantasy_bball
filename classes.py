@@ -1,5 +1,6 @@
-from typing import Optional, Dict, List, Any, Callable, cast, Union
+from typing import Optional, Dict, List, Any, Callable
 from dataclasses import dataclass, field
+from constants import stat_id_to_name
 
 
 @dataclass
@@ -7,6 +8,7 @@ class Stat:
     points: float
     turnovers: float
     minutes: float
+    games_played: int
     fgm: float
     fga: float
     ftm: float
@@ -30,53 +32,12 @@ class Stat:
         return self.ftm / self.fta
 
     @staticmethod
-    def from_stat_basic(stat_obj: Dict[str, float]) -> Callable[[str], float]:
-        # Player info returns a dict of pure stats
-        return lambda index: stat_obj[index]
-
-    @staticmethod
-    def from_stat_matchup(
-        stat_obj: Dict[str, Dict[str, Any]]
-    ) -> Callable[[str], float]:
-        # Matchup info returns a dict where raw stat is listed under score
-        return lambda index: cast(float, stat_obj[index]["score"])
-
-    @staticmethod
-    def parse_stat(
-        stat_obj: Union[Dict[str, Dict[str, Any]], Dict[str, float]],
-        from_stat_type: str = "basic",
-    ) -> "Stat":
-        if from_stat_type == "basic":
-            from_stat = Stat.from_stat_basic(cast(Dict[str, float], stat_obj))
-        else:
-            from_stat = Stat.from_stat_matchup(
-                cast(Dict[str, Dict[str, Any]], stat_obj)
-            )
-
-        return Stat(
-            points=from_stat("0"),
-            blocks=from_stat("1"),
-            steals=from_stat("2"),
-            assists=from_stat("3"),
-            rebounds=from_stat("6"),
-            turnovers=from_stat("11"),
-            fgm=from_stat("13"),
-            fga=from_stat("14"),
-            ftm=from_stat("15"),
-            fta=from_stat("16"),
-            made_threes=from_stat("17"),
-            minutes=from_stat("40"),
-            # attempted_threes = from_stat('18'),
-            # fouls = from_stat('9'),
-            # off_rebounds = from_stat('4'),
-            # def_rebounds = from_stat('5'),
+    def parse_stat(stat_obj: Dict[str, float]) -> "Stat":
+        # The 0 is necessary cuz Gobert's bum ass doesn't even have the threes stat in the json
+        from_stat: Callable[[str], float] = (
+            lambda index: stat_obj[index] if index in stat_obj else 0
         )
-
-        # 7,8 = ?
-        # fg_pct = 19
-        # ft_pct = 20
-        # 3_pct = 21
-        # efg = 22
+        return Stat(**{name: from_stat(idx) for idx, name in stat_id_to_name.items()})  # type: ignore
 
 
 @dataclass
@@ -101,6 +62,10 @@ class Stats:
             if not stat_objs:
                 return None
             stat_obj = stat_objs[0]
+
+            # One case is rookie who have empty stats for last season, might be others
+            if not stat_obj["stats"]:
+                return None
             return StatDict(
                 avg=Stat.parse_stat(stat_obj["averageStats"])
                 if "averageStats" in stat_obj
@@ -123,11 +88,25 @@ class Player:
     pid: int
     name: str
     status: str  # FREEAGENT, WAIVERS, etc.
+    injured: bool
     stats: Stats
     league_tid: int
     nba_tid: int
 
     games_remaining: Optional[int] = None
+
+    @staticmethod
+    def from_entry(player_obj: Dict[str, Any]) -> "Player":
+        player = player_obj["player"]
+        return Player(
+            pid=player["id"],
+            name=player["fullName"],
+            status=player_obj["status"],
+            injured=player["injured"],
+            stats=Stats.parse_stats(player["stats"]),
+            league_tid=player_obj["onTeamId"],
+            nba_tid=player["proTeamId"],
+        )
 
 
 @dataclass
@@ -137,12 +116,21 @@ class Team:
     location: str
     nickname: str
     abbr: str
-
-    roster: Optional[Dict[int, Player]] = None
+    roster: Dict[str, Player]
 
     @property
     def name(self) -> str:
         return self.location + " " + self.nickname
+
+    @staticmethod
+    def parse_roster(roster: Dict[str, Any]) -> Dict[str, Player]:
+        players: Dict[str, Player] = {}
+        for entry in roster["entries"]:
+            player_entry = entry["playerPoolEntry"]
+            players[player_entry["player"]["fullName"]] = Player.from_entry(
+                player_entry
+            )
+        return players
 
 
 @dataclass
@@ -151,8 +139,8 @@ class Matchup:
     period_id: int
     home_tid: int
     away_tid: int
-    home_stat: Stat
-    away_stat: Stat
+    home_stat: Optional[Stat]
+    away_stat: Optional[Stat]
 
     winner: Optional[int] = None  # None if currently active
 
@@ -173,9 +161,26 @@ class Schedule:
     def get_stats_from_matchup(
         curr_matchup_side: Dict[str, Dict[str, Any]]
     ) -> Optional[Stat]:
-        if "cumulativeScore" in curr_matchup_side:
+        # Only available for current games
+        if "rosterForMatchupPeriod" in curr_matchup_side:
+            stats = {name: 0 for name in stat_id_to_name.values()}
+            for entry in curr_matchup_side["rosterForMatchupPeriod"]["entries"]:
+                stats_obj = entry["playerPoolEntry"]["player"]["stats"]
+                # Lineup slots can have no players and thus be missing stat info
+                if stats_obj:
+                    stats_obj = stats_obj[0]["stats"]
+                    for stat_id, name in stat_id_to_name.items():
+                        stats[name] += stats_obj[stat_id]
+            return Stat(**stats)
+        # Only available for past games
+        elif "cumulativeScore" in curr_matchup_side:
             return Stat.parse_stat(
-                curr_matchup_side["cumulativeScore"]["scoreByStat"], "matchup"
+                {
+                    stat_idx: stat["score"]
+                    for stat_idx, stat in curr_matchup_side["cumulativeScore"][
+                        "scoreByStat"
+                    ].items()
+                }
             )
         return None
 

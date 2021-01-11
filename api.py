@@ -1,9 +1,14 @@
 import requests
 import json
-from constants import team_dict
-from classes import Team, Stats, Player, Schedule, Matchup, Week, UserMatchup
-from typing import Dict, Any, Optional, cast
+
+from classes import Team, Player, Schedule, Matchup, Week, UserMatchup
+from typing import Dict, Any, Optional, cast, Union, List
 from functools import cached_property
+from constants import team_dict
+import datetime as dt
+import pytz
+
+ny_tz = pytz.timezone("America/New_York")
 
 
 class ESPN_API:
@@ -48,7 +53,7 @@ class ESPN_API:
 
     def get_req(
         self,
-        params: Optional[Dict[str, str]] = None,
+        params: Optional[Dict[str, Union[str, List[str]]]] = None,
         headers: Optional[Dict[str, str]] = None,
     ) -> Any:
         return requests.get(
@@ -68,7 +73,7 @@ class ESPN_API:
 
     @property
     def teams(self) -> Dict[int, Team]:
-        team_json = self.get_req(params={"view": "mTeam"})
+        team_json = self.get_req(params={"view": ["mTeam", "mRoster"]})
         teams = {}
         for team in team_json["teams"]:
             teams[team["id"]] = Team(
@@ -77,36 +82,49 @@ class ESPN_API:
                 nickname=team["nickname"],
                 abbr=team["abbrev"],
                 waiver_rank=team["waiverRank"],
+                roster=Team.parse_roster(team["roster"]),
             )
         return teams
 
     @cached_property
-    def name_to_pid(self) -> Dict[str, int]:
-        player_json = self.get_players_json()
-        return {
-            player["player"]["fullName"]: player["id"]
-            for player in player_json["players"]
-        }
-
-    @property
-    def players(self) -> Dict[int, Player]:
+    def players(self) -> Dict[str, Player]:
         player_json = self.get_players_json()
         players = {}
         for player in player_json["players"]:
-            player_obj = player["player"]
-            players[player["id"]] = Player(
-                pid=player["id"],
-                name=player_obj["fullName"],
-                status=player["status"],
-                stats=Stats.parse_stats(player_obj["stats"]),
-                league_tid=player["onTeamId"],
-                nba_tid=player_obj["proTeamId"],
-            )
+            players[player["player"]["fullName"]] = Player.from_entry(player)
         return players
 
     @property
-    def schedule(self):
-        matchup_json = self.get_req(params={"view": "mMatchup"})
+    def remaining_games(self) -> Dict[int, int]:
+        nba_schedule_url = "https://fantasy.espn.com/apis/v3/games/fba/seasons/2021?view=proTeamSchedules_wl"
+        schedule = requests.get(nba_schedule_url).json()
+        team_schedule = schedule["settings"]["proTeams"]
+        games: Dict[int, int] = {team_id: 0 for team_id in team_dict}
+
+        # Cutoff is at midnight Monday morning since games use start time
+        # ESPN data recorded in terms of EST
+        now = dt.datetime.now(pytz.utc).astimezone(ny_tz)
+        cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        cutoff += dt.timedelta(days=7 - cutoff.weekday())
+
+        for team in team_schedule:
+            if team["abbrev"] == "FA":
+                continue
+            for game in team["proGamesByScoringPeriod"].values():
+                # Their unix ts includes ms, which fromtimestamp doesn't support
+                game_ts = game[0]["date"] // 1000
+                game_date = dt.datetime.fromtimestamp(game_ts).astimezone(ny_tz)
+                if now < game_date < cutoff:
+                    games[team["id"]] += 1
+        return games
+
+    @cached_property
+    def schedule(self) -> Schedule:
+        matchup_json = self.get_req(
+            params={
+                "view": ["mScoreboard", "mMatchup", "mMatchupScore", "mRoster", "mTeam"]
+            }
+        )
         schedule = Schedule()
         for week in range(16):
             matchups = {}
@@ -132,7 +150,7 @@ class ESPN_API:
         return schedule
 
     @property
-    def matchup(self):
+    def matchup(self) -> UserMatchup:
         schedule = self.schedule
         curr_period_id = schedule.last_processed_period + 1
         curr_week = schedule.weeks[curr_period_id - 1]
@@ -155,12 +173,3 @@ class ESPN_API:
             user_stat=user_stat,
             opp_stat=opp_stat,
         )
-
-    # @staticmethod
-    # def load_team_dict():
-    #     teams = requests.get("https://site.web.api.espn.com/apis/site/v2/teams?region=us&lang=en&leagues=nba").json()
-    #     team_dict = {'0': 'No Team'}
-    #     for div in teams['nba']:
-    #         for team in div['teams']:
-    #             team_dict[team['id']] = team['shortDisplayName']
-    #     return team_dict
