@@ -1,0 +1,25 @@
+Metadata-Version: 2.1
+Name: fantasy
+Version: 0.0.1
+Summary: A small example package
+Home-page: https://github.com/pypa/sampleproject
+Author: Example Author
+Author-email: author@example.com
+License: UNKNOWN
+Project-URL: Bug Tracker, https://github.com/pypa/sampleproject/issues
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+
+# fantasy_bball
+
+### Setup
+1. ```conda create -n fantasy -f environment.yml``` should create a conda env with the necessary dependencies.
+    - Once already installed, ```mamba env update -n fantasy -f environment.yml``` to stay up-to-date 
+        * [mamba ](https://github.com/mamba-org/mamba) is a faster dependency resolver for conda, updating/installing conda packages in an existing env is excruciatingly slow otherwise.
+2. ```league.py``` is main entry point for ESPN League data currently, but requires a config.json with the necessary cookies to work correctly (hmu)
+
+

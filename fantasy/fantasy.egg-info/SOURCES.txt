@@ -1,0 +1,6 @@
+README.md
+setup.py
+fantasy/fantasy.egg-info/PKG-INFO
+fantasy/fantasy.egg-info/SOURCES.txt
+fantasy/fantasy.egg-info/dependency_links.txt
+fantasy/fantasy.egg-info/top_level.txt
