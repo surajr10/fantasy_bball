@@ -1,13 +1,13 @@
+from typing import Dict, Any, Optional, cast, Union, List
+from functools import cached_property
+from .classes import Team, Player, Schedule, Matchup, Week, UserMatchup
+from .constants import team_dict
+
 import requests
 import json
 
-from classes import Team, Player, Schedule, Matchup, Week, UserMatchup
-from typing import Dict, Any, Optional, cast, Union, List
-from functools import cached_property
-from constants import team_dict
 import datetime as dt
 import pytz
-
 ny_tz = pytz.timezone("America/New_York")
 
 
@@ -27,13 +27,13 @@ class ESPNLeague:
             "filterStatsForTopScoringPeriodIds": {
                 "value": 5,
                 "additionalValue": [
+                    "002022",
+                    "102022",
                     "002021",
-                    "102021",
-                    "002020",
-                    "012021",
-                    "022021",
-                    "032021",
-                    "042021",
+                    "012022",
+                    "022022",
+                    "032022",
+                    "042022",
                 ],
             },
         }
@@ -43,7 +43,7 @@ class ESPNLeague:
         with open("config.json") as config_file:
             config = json.load(config_file)
         self.url = (
-            "http://fantasy.espn.com/apis/v3/games/fba/seasons/2021/segments/0/leagues/"
+            "http://fantasy.espn.com/apis/v3/games/fba/seasons/2022/segments/0/leagues/"
             + str(config["league_id"])
         )
         self.cookies = config["cookies"]
@@ -62,11 +62,11 @@ class ESPNLeague:
 
     def get_players_json(self) -> Dict[Any, Any]:
         player_json = self.get_req(
-            params={"view": "kona_player_info"},
+            params={"view": "kona_player_info", "scoring_period_id": "76"},
             headers={
-                "x-fantasy-filter": json.dumps(self.fantasy_filter),
-                "x-fantasy-platform": "kona-PROD-a5abcf16cafe5c335041277beeafcabc2a236402",
-                "x-fantasy-source": "kona",
+                "X-Fantasy-Filter": json.dumps(self.fantasy_filter),
+                "X-Fantasy-Platform": "kona-PROD-2a24e2207f3c397a6079b292b80c17d5534f8c92",
+                "X-Fantasy-Source": "kona",
             },
         )
         return cast(Dict[Any, Any], player_json)

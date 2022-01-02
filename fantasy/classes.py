@@ -1,6 +1,6 @@
 from typing import Optional, Dict, List, Any, Callable
 from dataclasses import dataclass, field
-from constants import stat_id_to_name
+from .constants import stat_id_to_name
 
 
 @dataclass
@@ -51,9 +51,9 @@ class Stats:
     last7: Optional[StatDict]
     last15: Optional[StatDict]
     last30: Optional[StatDict]
-    s20: Optional[StatDict]
     s21: Optional[StatDict]
-    s21_proj: Optional[StatDict]
+    s22: Optional[StatDict]
+    s22_proj: Optional[StatDict]
 
     @staticmethod
     def parse_stats(stats: Dict[Any, Any]) -> "Stats":
@@ -74,12 +74,12 @@ class Stats:
             )
 
         return Stats(
-            last7=get_stat("012021"),
-            last15=get_stat("022021"),
-            last30=get_stat("032021"),
-            s20=get_stat("002020"),
+            last7=get_stat("012022"),
+            last15=get_stat("022022"),
+            last30=get_stat("032022"),
             s21=get_stat("002021"),
-            s21_proj=get_stat("102021"),
+            s22=get_stat("002022"),
+            s22_proj=get_stat("102022"),
         )
 
 
