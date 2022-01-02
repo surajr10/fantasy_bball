@@ -113,7 +113,8 @@ class ESPNLeague:
             for game in team["proGamesByScoringPeriod"].values():
                 # Their unix ts includes ms, which fromtimestamp doesn't support
                 game_ts = game[0]["date"] // 1000
-                game_date = dt.datetime.fromtimestamp(game_ts).astimezone(ny_tz)
+                game_date = dt.datetime.fromtimestamp(
+                    game_ts).astimezone(ny_tz)
                 if now < game_date < cutoff:
                     games[team["id"]] += 1
         return games
@@ -136,8 +137,10 @@ class ESPNLeague:
                     period_id=curr_matchup["matchupPeriodId"],
                     home_tid=curr_matchup["home"]["teamId"],
                     away_tid=curr_matchup["away"]["teamId"],
-                    home_stat=Schedule.get_stats_from_matchup(curr_matchup["home"]),
-                    away_stat=Schedule.get_stats_from_matchup(curr_matchup["away"]),
+                    home_stat=Schedule.get_stats_from_matchup(
+                        curr_matchup["home"]),
+                    away_stat=Schedule.get_stats_from_matchup(
+                        curr_matchup["away"]),
                     winner=None
                     if curr_matchup["winner"] == "UNDECIDED"
                     else curr_matchup["winner"],
@@ -167,6 +170,7 @@ class ESPNLeague:
         assert user_stat and opp_stat
 
         return UserMatchup(
+            # TODO: fix this? are matchups duplicated in loop above?
             matchup_id=matchup.matchup_id,
             period_id=curr_period_id,
             opp_tid=opp_tid,
